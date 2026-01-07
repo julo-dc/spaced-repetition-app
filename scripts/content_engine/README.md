@@ -42,13 +42,13 @@ Then edit `.env` with your credentials:
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-OPENAI_API_KEY=your_openai_key_here  # Optional, for solution steps
+MISTRAL_API_KEY=your_mistral_key_here  # Optional, for solution steps
 ```
 
 **Where to find these:**
 - **SUPABASE_URL**: Supabase Dashboard → Settings → API
 - **SERVICE_ROLE_KEY**: Supabase Dashboard → Settings → API → service_role (secret)
-- **OPENAI_API_KEY**: platform.openai.com (optional, fallback to templates)
+- **MISTRAL_API_KEY**: console.mistral.ai (optional, fallback to templates)
 
 ### 3. Run Database Migration
 
@@ -59,15 +59,23 @@ Make sure you've run the migration in `supabase/migrations/20260107_initial_sche
 ### Generate and Upload Questions
 
 ```bash
-# Generate 5 Chain Rule questions
+# Generate 5 Chain Rule questions (≈5.5 seconds with Mistral free tier)
 python main.py --topic "Chain Rule" --count 5
 
-# Generate 10 Product Rule questions with difficulty 2
+# Generate 10 Product Rule questions with difficulty 2 (≈11 seconds)
 python main.py --topic "Product Rule" --count 10 --difficulty 2
 
 # Generate without uploading (for testing)
 python main.py --topic "Quotient Rule" --count 3 --skip-upload
 ```
+
+### Rate Limiting
+
+**Mistral Free Tier:** 1 request/second
+- The system automatically respects this limit
+- Each question generation takes ~1.1 seconds
+- 10 questions = ~11 seconds total
+- No rate limiting if using template steps (no API key)
 
 ### Supported Topics
 

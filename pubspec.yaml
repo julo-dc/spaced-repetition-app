@@ -18,7 +18,7 @@ dependencies:
   riverpod_annotation: ^2.3.5
   
   # Math Rendering
-  flutter_tex: ^4.0.9
+  flutter_math_fork: ^0.7.1
   
   # UI & Utilities
   go_router: ^14.0.2

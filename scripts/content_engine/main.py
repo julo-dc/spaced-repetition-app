@@ -8,6 +8,7 @@ Usage:
 """
 
 import argparse
+import os
 from dotenv import load_dotenv
 from generator import MathGenerator
 from uploader import SupabaseUploader
@@ -31,7 +32,7 @@ def main():
         '--count',
         type=int,
         required=True,
-        help='Number of questions to generate'
+        help='Number of questions to generate (Note: Mistral free tier has 1 req/sec limit)'
     )
     
     parser.add_argument(
@@ -51,11 +52,15 @@ def main():
     args = parser.parse_args()
     
     print("=" * 60)
-    print("SPACED REPETITION - CONTENT ENGINE")
+    print("SPACED REPETITION - CONTENT ENGINE (Mistral Free Tier)")
     print("=" * 60)
     print(f"Topic: {args.topic}")
     print(f"Count: {args.count}")
     print(f"Difficulty: {args.difficulty}")
+    if os.getenv('MISTRAL_API_KEY'):
+        print(f"Note: Will respect 1 req/sec rate limit (≈{args.count * 1.1:.1f}s total)")
+    else:
+        print("Note: Using template solution steps (no API key)")
     print("=" * 60)
     print()
     

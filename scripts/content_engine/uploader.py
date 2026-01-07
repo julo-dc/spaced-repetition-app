@@ -22,7 +22,21 @@ class SupabaseUploader:
                 "SUPABASE_SERVICE_ROLE_KEY in your .env file."
             )
         
-        self.client: Client = create_client(self.url, self.service_key)
+        # Try different client initialization approaches
+        try:
+            # First attempt: standard initialization
+            self.client: Client = create_client(self.url, self.service_key)
+        except Exception as e:
+            print(f"Standard client creation failed: {e}")
+            # Second attempt: with explicit parameters
+            try:
+                self.client: Client = create_client(
+                    supabase_url=self.url,
+                    supabase_key=self.service_key
+                )
+            except Exception as e2:
+                print(f"Alternative client creation failed: {e2}")
+                raise ValueError(f"Could not create Supabase client: {e2}")
     
     def get_or_create_topic(self, topic_name: str) -> str:
         """

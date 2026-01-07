@@ -1,0 +1,365 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/session_provider.dart';
+import '../widgets/math_text_widget.dart';
+
+class QuizScreen extends ConsumerStatefulWidget {
+  const QuizScreen({super.key});
+
+  @override
+  ConsumerState<QuizScreen> createState() => _QuizScreenState();
+}
+
+class _QuizScreenState extends ConsumerState<QuizScreen> {
+  String? selectedOptionId;
+  bool hasAnswered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionState = ref.watch(sessionProvider);
+
+    if (sessionState.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (sessionState.error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Quiz'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                'Error: ${sessionState.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (sessionState.currentQuestion == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Quiz'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, size: 64, color: Colors.green),
+              const SizedBox(height: 16),
+              const Text(
+                'No questions available',
+                style: TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (sessionState.isSessionComplete) {
+      return _buildSessionCompleteScreen(context, sessionState);
+    }
+
+    final question = sessionState.currentQuestion!;
+    final content = question.content;
+    final statement = content['statement'] as String? ?? '';
+    final options = (content['options'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(sessionState.currentTopic?.name ?? 'Quiz'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            ref.read(sessionProvider.notifier).resetSession();
+            context.go('/');
+          },
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildProgressBar(sessionState),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Question',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          MathTextWidget(
+                            latexString: statement,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Select an answer:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...options.map((option) => MathOptionWidget(
+                  latexContent: option['latex'] as String,
+                  optionId: option['id'] as String,
+                  isSelected: selectedOptionId == option['id'],
+                  isCorrect: option['is_correct'] == true,
+                  hasAnswered: hasAnswered,
+                  onTap: () => _handleOptionSelected(option['id'] as String, option['is_correct'] == true),
+                )),
+                  if (hasAnswered) ...[
+                    const SizedBox(height: 24),
+                    _buildFeedback(options),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _handleNext,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text(
+                        'Next Question',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(SessionState sessionState) {
+    final progress = (sessionState.currentQuestionIndex + 1) / sessionState.questions.length;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Question ${sessionState.currentQuestionIndex + 1} of ${sessionState.questions.length}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '${(progress * 100).toInt()}%',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.grey[300],
+            minHeight: 8,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedback(List<Map<String, dynamic>> options) {
+    final correctOption = options.firstWhere((opt) => opt['is_correct'] == true);
+    final selectedOption = options.firstWhere((opt) => opt['id'] == selectedOptionId);
+    final isCorrect = selectedOption['is_correct'] == true;
+
+    return Card(
+      color: isCorrect ? Colors.green[50] : Colors.red[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isCorrect ? Icons.check_circle : Icons.cancel,
+                  color: isCorrect ? Colors.green : Colors.red,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isCorrect ? 'Correct!' : 'Incorrect',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isCorrect ? Colors.green[700] : Colors.red[700],
+                  ),
+                ),
+              ],
+            ),
+            if (!isCorrect) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Correct answer:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              MathTextWidget(
+                latexString: correctOption['latex'] as String,
+                fontSize: 16,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSessionCompleteScreen(BuildContext context, SessionState sessionState) {
+    final correctCount = sessionState.correctAnswers;
+    final totalCount = sessionState.questions.length;
+    final percentage = (correctCount / totalCount * 100).toInt();
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Session Complete'),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.celebration,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Session Complete!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Text(
+                        '$correctCount / $totalCount',
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$percentage% Correct',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  ref.read(sessionProvider.notifier).resetSession();
+                  context.go('/');
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text(
+                  'Back to Topics',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleOptionSelected(String optionId, bool isCorrect) {
+    setState(() {
+      selectedOptionId = optionId;
+      hasAnswered = true;
+    });
+
+    final currentQuestion = ref.read(sessionProvider).currentQuestion;
+    if (currentQuestion != null) {
+      ref.read(sessionProvider.notifier).answerQuestion(currentQuestion.id, isCorrect);
+    }
+  }
+
+  void _handleNext() {
+    ref.read(sessionProvider.notifier).nextQuestion();
+    setState(() {
+      selectedOptionId = null;
+      hasAnswered = false;
+    });
+  }
+}

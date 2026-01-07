@@ -1,8 +1,10 @@
 import random
+import time
 from typing import List, Dict, Any
 import sympy as sp
 from sympy import symbols, sin, cos, tan, exp, log, diff, latex
-from langchain_openai import ChatOpenAI
+from langchain_mistralai import ChatMistralAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain.prompts import ChatPromptTemplate
 import os
 
@@ -16,9 +18,25 @@ class MathGenerator:
     def __init__(self):
         self.x = symbols('x')
         self.llm = None
+        self.last_llm_request_time = 0
         
-        if os.getenv('OPENAI_API_KEY'):
-            self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
+        # Try Mistral first, then NVIDIA as fallback
+        if os.getenv('MISTRAL_API_KEY'):
+            try:
+                self.llm = ChatMistralAI(model="mistral-large-latest", temperature=0.7)
+                print("Using Mistral AI for solution steps")
+            except Exception as e:
+                print(f"Mistral AI failed: {e}")
+        
+        if not self.llm and os.getenv('NVIDIA_API_KEY'):
+            try:
+                self.llm = ChatNVIDIA(model="mistralai/mistral-large", temperature=0.7)
+                print("Using NVIDIA AI for solution steps")
+            except Exception as e:
+                print(f"NVIDIA AI failed: {e}")
+        
+        if not self.llm:
+            print("No LLM available - using template solution steps")
     
     def _generate_random_function(self, topic: str) -> sp.Expr:
         """Generate a random function based on the topic."""
@@ -100,18 +118,25 @@ class MathGenerator:
         
         if self.llm:
             try:
+                # Rate limit: wait 1.1 seconds between requests (Mistral free tier = 1 req/sec)
+                current_time = time.time()
+                time_since_last = current_time - self.last_llm_request_time
+                if time_since_last < 1.1:
+                    time.sleep(1.1 - time_since_last)
+                
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are a calculus tutor. Generate 3-4 clear, concise solution steps."),
+                    ("system", "You are a calculus tutor. Generate 3-4 clear, concise solution steps. Return ONLY a JSON array of strings."),
                     ("user", 
                      f"Topic: {topic}\n"
                      f"Function: f(x) = {sp.latex(function)}\n"
                      f"Derivative: f'(x) = {sp.latex(derivative)}\n\n"
-                     f"Provide step-by-step solution as a JSON array of strings."
+                     f"Generate solution steps as JSON array like: [\"Step 1...\", \"Step 2...\"]"
                     )
                 ])
                 
                 chain = prompt | self.llm
                 response = chain.invoke({})
+                self.last_llm_request_time = time.time()
                 
                 import json
                 steps = json.loads(response.content)
