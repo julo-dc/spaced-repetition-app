@@ -5,15 +5,15 @@ export async function fetchTopics(): Promise<Topic[]> {
   console.log('Fetching topics from Supabase...');
   try {
     // Add timeout to prevent infinite loading
-    const timeoutPromise = new Promise<never>((_, reject) => 
+    const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Topics fetch timeout after 5 seconds')), 5000)
     );
-    
+
     const fetchPromise = supabase
       .from('topics')
       .select('*')
       .order('name');
-    
+
     const { data, error, status, statusText } = await Promise.race([fetchPromise, timeoutPromise]);
 
     if (error) {
@@ -28,14 +28,14 @@ export async function fetchTopics(): Promise<Topic[]> {
       console.error(errorMsg);
       throw new Error(errorMsg);
     }
-    
+
     console.log('Topics fetched successfully:', data);
-    
+
     if (!data || data.length === 0) {
       console.log('No topics in database, using fallback');
       return getFallbackTopics();
     }
-    
+
     return data;
   } catch (error: any) {
     if (error.message === 'Topics fetch timeout after 5 seconds') {
@@ -48,6 +48,26 @@ export async function fetchTopics(): Promise<Topic[]> {
     }
     console.log('📦 Returning fallback topics due to network issues');
     return getFallbackTopics();
+  }
+}
+
+export async function fetchTopicById(id: string): Promise<Topic | null> {
+  try {
+    const { data, error } = await supabase
+      .from('topics')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching topic:', error);
+    // Return a fallback topic if it matches the hardcoded ID, otherwise null
+    if (id === '7e5718c9-00ad-4064-94fa-b42913cfda09') {
+      return getFallbackTopics()[0];
+    }
+    return null;
   }
 }
 
@@ -69,7 +89,7 @@ export async function fetchQuestionsForTopic(topicId: string): Promise<Question[
       .from('questions')
       .select('*')
       .eq('topic_id', topicId);
-    
+
 
     if (error) {
       // Ignore AbortError - it's expected when React re-renders in dev mode
@@ -78,12 +98,12 @@ export async function fetchQuestionsForTopic(topicId: string): Promise<Question[
       }
       throw error;
     }
-    
-    
+
+
     if (!data || data.length === 0) {
       return getFallbackQuestions(topicId);
     }
-    
+
     return data;
   } catch (error: any) {
     // Ignore AbortError - expected in React dev mode
@@ -255,12 +275,12 @@ export async function testConnection(): Promise<{ success: boolean; message: str
   try {
     console.log('Testing Supabase connection...');
     const { data, error } = await supabase.from('topics').select('count', { count: 'exact', head: true });
-    
+
     if (error) {
       console.error('Connection test failed:', JSON.stringify(error, null, 2));
       return { success: false, message: error.message };
     }
-    
+
     console.log('Connection test successful');
     return { success: true, message: 'Connected successfully' };
   } catch (error: any) {
@@ -272,19 +292,19 @@ export async function testConnection(): Promise<{ success: boolean; message: str
 export async function updateQuestionStats(questionId: string, isCorrect: boolean): Promise<void> {
   try {
     console.log('📊 Updating question stats:', { questionId, isCorrect });
-    
+
     // First, get current stats
     const { data: question, error: fetchError } = await supabase
       .from('questions')
       .select('times_shown, times_correct')
       .eq('id', questionId)
       .single();
-    
+
     if (fetchError) {
       console.error('Error fetching question stats:', fetchError);
       throw fetchError;
     }
-    
+
     // Update the stats
     const { error: updateError } = await supabase
       .from('questions')
@@ -293,12 +313,12 @@ export async function updateQuestionStats(questionId: string, isCorrect: boolean
         times_correct: (question?.times_correct || 0) + (isCorrect ? 1 : 0)
       })
       .eq('id', questionId);
-    
+
     if (updateError) {
       console.error('Error updating question stats:', updateError);
       throw updateError;
     }
-    
+
     console.log('✅ Question stats updated successfully');
   } catch (error: any) {
     if (error.message?.includes('Load failed') || error.message?.includes('AuthRetryableFetchError')) {
@@ -330,7 +350,7 @@ export async function saveReviews(reviews: Array<{
       console.error('📊 Review data being sent:', JSON.stringify(reviews, null, 2));
       throw error;
     }
-    
+
     console.log('✅ Reviews saved successfully:', data);
   } catch (error: any) {
     if (

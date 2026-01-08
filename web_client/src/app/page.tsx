@@ -6,6 +6,7 @@ import { SignInButton } from '@/components/SignInButton';
 import { fetchTopics } from '@/lib/api';
 import { Topic } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { QuestionText } from '@/components/MathDisplay';
 import { BarChart3, Play, Trophy, Target, Zap, BookOpen } from 'lucide-react';
 
 export default function Home() {
@@ -73,8 +74,8 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Build deep mathematical understanding through intelligent practice. 
-              Our spaced repetition system adapts to your performance, scheduling reviews 
+              Build deep mathematical understanding through intelligent practice.
+              Our spaced repetition system adapts to your performance, scheduling reviews
               at the perfect time for maximum retention.
             </p>
           </div>
@@ -131,7 +132,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Topic</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Select a topic to begin your personalized learning journey. 
+              Select a topic to begin your personalized learning journey.
               Each topic adapts to your current skill level.
             </p>
           </div>
@@ -162,15 +163,15 @@ export default function Home() {
                       <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
                         {topic.name.split(':')[0]}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        {topic.name.split(':')[1]?.trim() || 'Master this fundamental concept'}
-                      </p>
+                      <div className="text-sm text-gray-600">
+                        <QuestionText text={topic.name.split(':')[1]?.trim() || 'Master this fundamental concept'} />
+                      </div>
                     </div>
                     <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center group-hover:from-indigo-200 group-hover:to-purple-200 transition-colors">
                       <Play className="w-6 h-6 text-indigo-600" />
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>

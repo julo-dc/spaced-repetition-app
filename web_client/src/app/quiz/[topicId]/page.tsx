@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuizStore, useCurrentQuestion, useIsSessionComplete, useCorrectAnswersCount } from '@/store/quizStore';
-import { fetchQuestionsForTopic } from '@/lib/api';
+import { fetchQuestionsForTopic, fetchTopicById } from '@/lib/api';
 import { QuestionText, MathDisplay } from '@/components/MathDisplay';
 import { ArrowLeft, CheckCircle2, XCircle, Loader2, RefreshCcw, LogIn, Trophy, BarChart3, TrendingUp, TrendingDown, Minus, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,20 +29,26 @@ export default function QuizPage({ params }: PageProps) {
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    const loadQuestions = async () => {
-      const qs = await fetchQuestionsForTopic(resolvedParams.topicId);
-      startSession(
-        { id: resolvedParams.topicId, name: 'Chain Rule', slug: 'chain-rule', parent_id: null, created_at: new Date().toISOString() },
-        qs
-      );
+    const loadData = async () => {
+      const [qs, topic] = await Promise.all([
+        fetchQuestionsForTopic(resolvedParams.topicId),
+        fetchTopicById(resolvedParams.topicId)
+      ]);
+
+      if (topic) {
+        startSession(topic, qs);
+      } else {
+        // Fallback or error handling could go here
+        console.error('Topic not found');
+      }
     };
-    loadQuestions();
+    loadData();
   }, [resolvedParams.topicId, startSession]);
 
   // Auto-submit results when session completes
   useEffect(() => {
     if (isSessionComplete && user && !isSaving && !error) {
-            submitSessionResults(user.id);
+      submitSessionResults(user.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSessionComplete, user?.id]);
@@ -125,21 +131,18 @@ export default function QuizPage({ params }: PageProps) {
             {/* Score Display */}
             <div className="p-8">
               <div className="text-center mb-8">
-                <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full mb-4 ${
-                  percentage >= 80 ? 'bg-green-100' : percentage >= 60 ? 'bg-orange-100' : 'bg-red-100'
-                }`}>
-                  <div className={`text-5xl font-bold ${
-                    percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-orange-600' : 'text-red-600'
+                <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full mb-4 ${percentage >= 80 ? 'bg-green-100' : percentage >= 60 ? 'bg-orange-100' : 'bg-red-100'
                   }`}>
+                  <div className={`text-5xl font-bold ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-orange-600' : 'text-red-600'
+                    }`}>
                     {percentage}%
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-gray-900 mb-2">
                   {correctCount} / {answeredCount} Correct
                 </div>
-                <div className={`text-xl font-semibold ${
-                  percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-orange-600' : 'text-red-600'
-                }`}>
+                <div className={`text-xl font-semibold ${percentage >= 80 ? 'text-green-600' : percentage >= 60 ? 'text-orange-600' : 'text-red-600'
+                  }`}>
                   {message}
                 </div>
               </div>
@@ -151,7 +154,7 @@ export default function QuizPage({ params }: PageProps) {
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     Rank Progress
                   </h3>
-                  
+
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
                       <div className="text-sm text-gray-600 mb-1">Before</div>
@@ -160,19 +163,17 @@ export default function QuizPage({ params }: PageProps) {
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className={`text-sm font-semibold mb-1 flex items-center justify-center gap-1 ${
-                        sessionResult.percentileChange > 0 ? 'text-green-600' : 
+                      <div className={`text-sm font-semibold mb-1 flex items-center justify-center gap-1 ${sessionResult.percentileChange > 0 ? 'text-green-600' :
                         sessionResult.percentileChange < 0 ? 'text-red-600' : 'text-gray-600'
-                      }`}>
+                        }`}>
                         {sessionResult.percentileChange > 0 && <TrendingUp className="w-4 h-4" />}
                         {sessionResult.percentileChange < 0 && <TrendingDown className="w-4 h-4" />}
                         {sessionResult.percentileChange === 0 && <Minus className="w-4 h-4" />}
                         Change
                       </div>
-                      <div className={`text-2xl font-bold ${
-                        sessionResult.percentileChange > 0 ? 'text-green-600' : 
+                      <div className={`text-2xl font-bold ${sessionResult.percentileChange > 0 ? 'text-green-600' :
                         sessionResult.percentileChange < 0 ? 'text-red-600' : 'text-gray-600'
-                      }`}>
+                        }`}>
                         {sessionResult.percentileChange > 0 ? '+' : ''}{sessionResult.percentileChange.toFixed(1)}%
                       </div>
                     </div>
@@ -187,7 +188,7 @@ export default function QuizPage({ params }: PageProps) {
                   {/* Progress Bar */}
                   <div className="relative">
                     <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000"
                         style={{ width: `${sessionResult.finalPercentile}%` }}
                       />
@@ -252,13 +253,13 @@ export default function QuizPage({ params }: PageProps) {
               <ArrowLeft className="w-4 h-4" />
               <span className="font-medium">Exit</span>
             </button>
-            
+
             <div className="text-center flex-1">
               <h2 className="text-lg font-semibold text-gray-900">
                 {currentTopic ? currentTopic.name.split(':')[0] : 'Loading...'}
               </h2>
             </div>
-            
+
             <button
               onClick={stopSession}
               disabled={answeredCount === 0}
@@ -280,9 +281,9 @@ export default function QuizPage({ params }: PageProps) {
                 <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
                 Question {answeredCount + 1}
               </div>
-              <QuestionText 
-                text={currentQuestion!.content.statement} 
-                className="text-2xl md:text-3xl font-semibold text-gray-900 leading-relaxed" 
+              <QuestionText
+                text={currentQuestion!.content.statement}
+                className="text-2xl md:text-3xl font-semibold text-gray-900 leading-relaxed"
               />
             </div>
           </div>
@@ -294,29 +295,27 @@ export default function QuizPage({ params }: PageProps) {
                 const isSelected = selectedOptionId === option.id;
                 const showResult = hasAnswered && isSelected;
                 const isCorrect = option.is_correct;
-                
+
                 return (
                   <button
                     key={option.id}
                     onClick={() => handleOptionSelect(option.id, option.is_correct)}
                     disabled={hasAnswered}
-                    className={`w-full p-5 rounded-xl border-2 transition-all duration-300 text-left group ${
-                      showResult && isCorrect
-                        ? 'border-green-500 bg-green-50'
-                        : showResult && !isCorrect
+                    className={`w-full p-5 rounded-xl border-2 transition-all duration-300 text-left group ${showResult && isCorrect
+                      ? 'border-green-500 bg-green-50'
+                      : showResult && !isCorrect
                         ? 'border-red-500 bg-red-50'
                         : isSelected
-                        ? 'border-indigo-500 bg-indigo-50 shadow-lg transform scale-[1.02]'
-                        : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 hover:shadow-md'
-                    } ${hasAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                          ? 'border-indigo-500 bg-indigo-50 shadow-lg transform scale-[1.02]'
+                          : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 hover:shadow-md'
+                      } ${hasAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
-                          selectedOptionId === option.id
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-gray-200 text-gray-700'
-                        }`}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${selectedOptionId === option.id
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                          }`}
                       >
                         {['A', 'B', 'C', 'D'][index]}
                       </div>
@@ -342,26 +341,22 @@ export default function QuizPage({ params }: PageProps) {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className={`p-8 text-center border-b ${
-                isCorrect ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-100'
-              }`}>
-                <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
-                  isCorrect ? 'bg-green-500' : 'bg-red-500'
+              <div className={`p-8 text-center border-b ${isCorrect ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-100'
                 }`}>
+                <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${isCorrect ? 'bg-green-500' : 'bg-red-500'
+                  }`}>
                   {isCorrect ? (
                     <CheckCircle2 className="w-12 h-12 text-white" />
                   ) : (
                     <XCircle className="w-12 h-12 text-white" />
                   )}
                 </div>
-                <h2 className={`text-3xl font-bold mb-2 ${
-                  isCorrect ? 'text-green-700' : 'text-red-700'
-                }`}>
+                <h2 className={`text-3xl font-bold mb-2 ${isCorrect ? 'text-green-700' : 'text-red-700'
+                  }`}>
                   {isCorrect ? 'Excellent!' : 'Let\'s Learn'}
                 </h2>
-                <p className={`text-lg ${
-                  isCorrect ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <p className={`text-lg ${isCorrect ? 'text-green-600' : 'text-red-600'
+                  }`}>
                   {isCorrect ? 'You got it right!' : 'That\'s not quite right'}
                 </p>
               </div>
