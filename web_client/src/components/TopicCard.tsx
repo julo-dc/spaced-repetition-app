@@ -3,6 +3,7 @@
 import React from 'react';
 import { Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QuestionText } from './MathDisplay';
 
 interface TopicCardProps {
   id: string;
@@ -36,9 +37,9 @@ export function TopicCard({
       </div>
 
       {/* Topic Name */}
-      <h3 className="text-lg font-bold text-gray-800 text-center line-clamp-2">
-        {name}
-      </h3>
+      <div className="text-lg font-bold text-gray-800 text-center line-clamp-2">
+        <QuestionText text={name} />
+      </div>
 
       {/* Mastery Badge */}
       <div className="mt-auto">

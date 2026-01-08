@@ -14,12 +14,12 @@ class SupabaseUploader:
         load_dotenv()
         
         self.url = os.getenv('SUPABASE_URL')
-        self.service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        self.service_key = os.getenv('SUPABASE_SECRET_KEY')
         
         if not self.url or not self.service_key:
             raise ValueError(
                 "Missing Supabase credentials. Please set SUPABASE_URL and "
-                "SUPABASE_SERVICE_ROLE_KEY in your .env file."
+                "SUPABASE_SECRET_KEY in your .env file."
             )
         
         # Try different client initialization approaches

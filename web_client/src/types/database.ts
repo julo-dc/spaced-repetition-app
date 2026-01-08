@@ -42,6 +42,6 @@ export interface Review {
   user_id: string;
   question_id: string;
   is_correct: boolean;
-  time_spent_seconds: number | null;
+  time_taken_seconds: number | null;
   created_at: string;
 }

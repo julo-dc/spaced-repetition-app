@@ -125,12 +125,12 @@ class MathGenerator:
                     time.sleep(1.1 - time_since_last)
                 
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", "You are a calculus tutor. Generate 3-4 clear, concise solution steps. Return ONLY a JSON array of strings."),
+                    ("system", "You are a calculus tutor. Generate 3-4 clear, concise solution steps. IMPORTANT: Every single mathematical expression, variable (like x), or formula MUST be wrapped in double dollar signs, e.g., $$f(x)$$, $$x^2$$, or $$\\sin(x)$$. Return ONLY a JSON array of strings."),
                     ("user", 
                      f"Topic: {topic}\n"
                      f"Function: f(x) = {sp.latex(function)}\n"
                      f"Derivative: f'(x) = {sp.latex(derivative)}\n\n"
-                     f"Generate solution steps as JSON array like: [\"Step 1...\", \"Step 2...\"]"
+                     f"Generate solution steps as JSON array like: [\"Step 1: Identify $$u = ...$$\", \"Step 2...\"]"
                     )
                 ])
                 
@@ -147,15 +147,15 @@ class MathGenerator:
         
         if "chain" in topic.lower():
             return [
-                f"Identify the outer function and inner function in {sp.latex(function)}",
-                "Apply the Chain Rule: (f ∘ g)'(x) = f'(g(x)) · g'(x)",
-                f"Compute the derivative: {sp.latex(derivative)}"
+                f"Identify the outer function and inner function in $${sp.latex(function)}$$",
+                "Apply the Chain Rule: $$(f \\circ g)'(x) = f'(g(x)) \\cdot g'(x)$$",
+                f"Compute the derivative: $${sp.latex(derivative)}$$"
             ]
         else:
             return [
-                f"Start with f(x) = {sp.latex(function)}",
+                f"Start with $$f(x) = {sp.latex(function)}$$",
                 "Apply differentiation rules",
-                f"Simplify to get f'(x) = {sp.latex(derivative)}"
+                f"Simplify to get $$f'(x) = {sp.latex(derivative)}$$"
             ]
     
     def generate_question(self, topic: str) -> Dict[str, Any]:
